@@ -3,7 +3,10 @@ import os,sys
 # CODE_PATH = '/raid/taoyang/research/research_everyday/projects/fairness/FairRec_www_2020/slurm/'
 import json
 import argparse
-#import argcomplete
+import argcomplete
+import psutil
+import time
+from progressbar import progressbar
 parser = argparse.ArgumentParser(description='Baseline Run')
 parser.add_argument('--CODE_PATH', type=str, default=None,required=True,
                     help='Directory of file.')
@@ -27,19 +30,30 @@ parser.add_argument('--black_list',type=str,
                     help='specify the segment of string where task name contain we will not execute. Use + to specify more')
 parser.add_argument('--white_list',type=str,
                     help='specify the segment of string where task name contain we will only execute. Use + to specify more')
-#argcomplete.autocomplete(parser)
+parser.add_argument('--only_print',action='store_true',
+                    help='specify to see if we only print the cmd')
+parser.add_argument('--initial_n_cmds',type=int, default=0,
+                    help='number of tasks when executing in slurm mode')
+parser.add_argument('--secs_each_sub',type=int, default=30,
+                    help='secs between each submission')
+parser.add_argument('--memory_usage',type=int, default=50,
+                    help='memory usage, [0,100]')
+argcomplete.autocomplete(parser)
 args = parser.parse_args()
+memory_usage=args.memory_usage
 BLACK_LIST=args.black_list.split("+") if args.black_list else []
 WHITE_LIST=args.white_list.split("+")if args.white_list else []
 CODE_PATH =args.CODE_PATH
 SETTING_JSON_PATH=args.JSON_PATH
 json_to_args=args.json2args
 python_ver=args.python_ver
+only_print=args.only_print
 # test_only=args.test_only
 plain_script=args.plain_script
 jobs_limit=args.jobs_limit
 ntasks=args.ntasks
 Cmd_file=args.Cmd_file
+secs_each_sub=args.secs_each_sub
 # DATA_PATH = '/raid/taoyang/research/datasets/istella-s-letor/all_with_my_logprerprocess_trial2/tmp_datalog_preprocess/tmp_data_toy/'#sys.argv[2]
 # OUTPUT_PATH = '/home/taoyang/research/research_everyday/projects/ULTRA_paper/result_log/'#sys.argv[3]
 # LOG_PATH = '/home/taoyang/research/research_everyday/projects/ULTRA_paper/result_log/'
@@ -112,14 +126,17 @@ def submit_one_job(prefix_path, json_file):
         command = 'bash'+' ' + cur_output_path + '/'+job_name+'.sh'
         command +=' > '+cur_log_path+job_name+'.o'+" 2>"+cur_log_path+job_name+'.e'
         global job_count
-        if job_count%jobs_limit!=0:
-            command+="&"
+        # if job_count%jobs_limit!=0:
+        #     command+="&"
         job_count+=1
         print(command)
-        os.system(command)
+        if not only_print:
+            command+="&"
+            os.system(command)
     else:
         print(command)
-        os.system(command)
+        if not only_print:
+            os.system(command)
 
 
 # Read json file from json path
@@ -127,12 +144,31 @@ json_file_list = []
 def get_json_file_from_path(prefix_path):
     for f in os.listdir(SETTING_JSON_PATH + prefix_path):
         if f.endswith('.json'):
-            json_file_list.append((prefix_path,f))
+            flag_run=True
+            for pass_name in  WHITE_LIST:
+                flag_run=flag_run and  pass_name in prefix_path+f
+            for skip_name in  BLACK_LIST:
+                flag_run=flag_run and  skip_name not in prefix_path+f
+            if flag_run:
+                json_file_list.append((prefix_path,f))
         elif os.path.isdir(SETTING_JSON_PATH + prefix_path + '/' + f):
             get_json_file_from_path(prefix_path + '/' + f)
 get_json_file_from_path('')
 
-for (prefix_path, json_file) in json_file_list:
+if not plain_script:
+    for (prefix_path, json_file) in progressbar(json_file_list):
+    #     for i in range(REPEAT_TIMES):
+            submit_one_job(prefix_path, json_file)
+else:
+    inital=args.initial_n_cmds
+    ind=0
+    for (prefix_path, json_file) in progressbar(json_file_list):
 #     for i in range(REPEAT_TIMES):
+        while psutil.virtual_memory().percent>memory_usage:
+            time.sleep(secs_each_sub)
+        # if psutil.virtual_memory().percent<80:
         submit_one_job(prefix_path, json_file)
+        if ind>inital and not only_print:
+            time.sleep(secs_each_sub)
+        ind+=1
 

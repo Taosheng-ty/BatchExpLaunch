@@ -5,6 +5,9 @@ import pandas as pd
 import json
 import matplotlib.pyplot as plt 
 from progressbar import progressbar
+
+from pathlib import Path
+
 def read_json(file_path):
     with open(file_path,"r") as f:
         result=json.load(f)
@@ -21,22 +24,27 @@ def append_single(result,max_len):
 def write_back(result,file_path):
     with open(file_path,"w") as f:
         json.dump(result,f)
-def get_path_sets(root_path):
+def get_path_sets(root_path,same_length=False):
     paths=glob.glob(root_path+'/**/*.jjson', recursive=True)
+    # print(paths)
     path_sets=set()
     for path in paths:
+        pp=Path(paths[0])
+        # path_root=str(pp.parent.parent)
         path_root=os.path.join(*path.split("/")[:-2])
-        # result_cur=read_json(path)
-        # max_len=find_max_len(result_cur)
-        # append_single(result_cur,max_len)
-        # write_back(result_cur,path)
+        # print(path_root1,path_root,"fdassa")
+        if same_length:
+            result_cur=read_json(path)
+            max_len=find_max_len(result_cur)
+            append_single(result_cur,max_len)
+            write_back(result_cur,path)
         # print(result_cur)
         # print(path_root)
         path_sets.add(path_root)
     return path_sets
 def merge_single_experiment_results(root_path):
     paths=glob.glob(root_path+'/**/*.jjson', recursive=True)
-    # print(paths)
+    # print(paths,root_path)
     df_result_cur=pd.DataFrame()
     for path in paths:
         pd_frame=pd.read_json(path)
@@ -58,30 +66,43 @@ class AutoVivification(dict):
             value = self[item] = type(self)()
             return value
 def get_node(root_path,path):
+    # print(root_path,path,"root_path,path")
     all_node=path.split("/")
     start_folder=root_path.split("/")[-1]
+    # print(root_path.split("/"),all_node)
     ind=all_node.index(start_folder)
     start_node=all_node[ind+1:]
+    # print(start_node)
     return start_node
 def set_node_val(node_list,multi_level_dict,val):
     for i in node_list[:-1]:
         multi_level_dict=multi_level_dict[i]
     last_node=node_list[-1]
     multi_level_dict[last_node]=val
-def get_result_df(root_path):
-    path_sets=get_path_sets(root_path)
+def get_result_df(root_path,same_length=False,groupby=None):
+    path_sets=get_path_sets(root_path,same_length)
+    # print(path_sets)
     result=AutoVivification()
+    if groupby:
+        result_mean=AutoVivification()
     for path_set in path_sets:
         node=get_node(root_path,path_set)
         
         result_cur=merge_single_experiment_results(path_set)
         set_node_val(node,result,result_cur)
+        if groupby:
+            # print(result_cur.keys(),node,result_cur)
+            result_merged_cur=result_cur.groupby(groupby).mean().reset_index()
+            set_node_val(node,result_mean,result_merged_cur)
         # print(result_cur,path_set)
-    return result
+    if groupby:
+        return result,result_mean
+    else:
+        return result
 
 import itertools
 
-def plot_metrics(name_results_pair:dict,plots_y_partition:str="metrics_NDCG",
+def plot_metrics(name_results_pair:dict,plots_y_partition:str="metrics_NDCG",errbar=True,
 plots_x_partition:str="iterations",groupby="iterations",graph_param=None)->None:
     
     '''    
@@ -98,10 +119,11 @@ plots_x_partition:str="iterations",groupby="iterations",graph_param=None)->None:
             mean=algo_result.groupby(groupby).mean().reset_index()
             std=algo_result.groupby(groupby).std().reset_index()
             assert plots_y_partition in algo_result, algo_name+" doesn't contain the partition "+plots_y_partition
-            # if "iteration" in algo_result:
-            plt.plot(mean[plots_x_partition],mean[plots_y_partition], marker = next(marker),color=next(colors), label=algo_name)
-            # else:
-            #     plt.axhline(algo_result[plots_y_partition].values[0], marker = next(marker),color=next(colors),label=algo_name)
+            if not errbar:
+                plt.plot(mean[plots_x_partition],mean[plots_y_partition], marker = next(marker),color=next(colors), label=algo_name)
+            else:
+                plt.errorbar(mean[plots_x_partition],mean[plots_y_partition], yerr=std[plots_y_partition], marker = next(marker),color=next(colors), label=algo_name)
+
     gca=plt.gca()
     gca.set(**graph_param)
     plt.legend()
