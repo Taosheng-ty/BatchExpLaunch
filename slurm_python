@@ -3,7 +3,7 @@ import os,sys
 # CODE_PATH = '/raid/taoyang/research/research_everyday/projects/fairness/FairRec_www_2020/slurm/'
 import json
 import argparse
-import argcomplete
+#import argcomplete
 parser = argparse.ArgumentParser(description='Baseline Run')
 parser.add_argument('--CODE_PATH', type=str, default=None,required=True,
                     help='Directory of file.')
@@ -27,7 +27,7 @@ parser.add_argument('--black_list',type=str,
                     help='specify the segment of string where task name contain we will not execute. Use + to specify more')
 parser.add_argument('--white_list',type=str,
                     help='specify the segment of string where task name contain we will only execute. Use + to specify more')
-argcomplete.autocomplete(parser)
+#argcomplete.autocomplete(parser)
 args = parser.parse_args()
 BLACK_LIST=args.black_list.split("+") if args.black_list else []
 WHITE_LIST=args.white_list.split("+")if args.white_list else []
