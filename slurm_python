@@ -6,6 +6,9 @@ import argparse
 import argcomplete
 import psutil
 import time
+import glob
+import random
+from shutil import move
 from progressbar import progressbar
 parser = argparse.ArgumentParser(description='Baseline Run')
 parser.add_argument('--CODE_PATH', type=str, default=None,required=True,
@@ -21,7 +24,13 @@ parser.add_argument('--python_ver',type=str, default="pt_ranking",
 # parser.add_argument('--test_only',action='store_true',
 #                     help='if not give, will exclude json file name containing test. if give, will only use json file containing test')
 parser.add_argument('--plain_script',action='store_true',
-                    help='if not give, will not use slurm')
+                    help='if not give, will use slurm')
+parser.add_argument('--rerun',action='store_true',
+                    help='if not give, will not rerun')
+parser.add_argument('--recover',action='store_true',
+                    help='if not give, will not recover')
+parser.add_argument('--show_backup',action='store_true',
+                    help='if not give, will not show_backup')
 parser.add_argument('--jobs_limit',type=int, default=4,
                     help='number of jobs when executing in plain script mode')
 parser.add_argument('--ntasks',type=int, default=4,
@@ -32,15 +41,22 @@ parser.add_argument('--white_list',type=str,
                     help='specify the segment of string where task name contain we will only execute. Use + to specify more')
 parser.add_argument('--only_print',action='store_true',
                     help='specify to see if we only print the cmd')
+parser.add_argument('--only_unfinished',action='store_true',
+                    help='specify to see if we only run only_unfinished')
 parser.add_argument('--initial_n_cmds',type=int, default=0,
                     help='number of tasks when executing in slurm mode')
 parser.add_argument('--secs_each_sub',type=int, default=30,
                     help='secs between each submission')
-parser.add_argument('--memory_usage',type=int, default=50,
+parser.add_argument('--memory_usage',type=int, default=80,
                     help='memory usage, [0,100]')
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
+
 memory_usage=args.memory_usage
+rerun=args.rerun
+recover=args.recover
+only_unfinished=args.only_unfinished
+show_backup=args.show_backup
 BLACK_LIST=args.black_list.split("+") if args.black_list else []
 WHITE_LIST=args.white_list.split("+")if args.white_list else []
 CODE_PATH =args.CODE_PATH
@@ -65,22 +81,45 @@ def submit_one_job(prefix_path, json_file):
     
     #prepare directory
     json_file_name = json_file.replace('.json','')
-    cur_json_path = '/'.join([SETTING_JSON_PATH, prefix_path, json_file])
-    cur_log_path = '/'.join([SETTING_JSON_PATH, prefix_path, json_file_name]) + '/'
-    cur_output_path = '/'.join([SETTING_JSON_PATH, prefix_path, json_file_name]) + '/'
+    cur_json_path = os.path.join(SETTING_JSON_PATH, prefix_path[1:], json_file)
+    cur_log_path = os.path.join(SETTING_JSON_PATH, prefix_path[1:], json_file_name)
+    cur_output_path = os.path.join(SETTING_JSON_PATH, prefix_path[1:], json_file_name)
 #     if test_only:
 #         if "test" not in cur_json_path:
 #             return 
 #     else:
 #         if "test"  in cur_json_path:
 #             return         
-    
+    if rerun:
+        cur_result_dir=os.path.join(SETTING_JSON_PATH, prefix_path[1:])
+        paths=glob.glob(cur_result_dir+"/*")
+        for path in paths:
+            if  path.endswith("jjson"):
+                print(path)
+                move(path, path+"bk")
+        return
+    if recover:
+        cur_result_dir=os.path.join(SETTING_JSON_PATH, prefix_path[1:])
+        paths=glob.glob(cur_result_dir+"/*")
+        for path in paths:
+            if  path.endswith("jjsonbk") :
+                print(path)
+                if not os.path.exists(path[:-2]):
+                    os.rename(path, path[:-2])
+        return
+    if show_backup:
+        cur_result_dir=os.path.join(SETTING_JSON_PATH, prefix_path[1:])
+        paths=glob.glob(cur_result_dir+"/*")
+        for path in paths:
+            if  path.endswith("jjsonbk") :
+                print(path)
+        return    
     if not os.path.exists(cur_log_path):
         os.makedirs(cur_log_path)
     if not os.path.exists(cur_output_path):
         os.makedirs(cur_output_path)
-    
-    fout = open(cur_output_path + '/'+job_name+'.sh', 'w')
+    job_path=os.path.join(cur_output_path,job_name)
+    fout = open(job_path+'.sh', 'w')
     # set slurm parameters
     fout.write('#!/bin/bash\n')
     fout.write('#\n')
@@ -113,7 +152,7 @@ def submit_one_job(prefix_path, json_file):
     fout.close()
     
     command = 'sbatch -e '+cur_log_path+job_name+'.e -o '+cur_log_path+job_name+'.o'
-    command += ' ' + cur_output_path + '/'+job_name+'.sh'
+    command += ' ' + job_path+'.sh'
 #     print(command)
     flag_run=True
     for pass_name in  WHITE_LIST:
@@ -123,8 +162,8 @@ def submit_one_job(prefix_path, json_file):
     if not flag_run:
         return
     if plain_script:
-        command = 'bash'+' ' + cur_output_path + '/'+job_name+'.sh'
-        command +=' > '+cur_log_path+job_name+'.o'+" 2>"+cur_log_path+job_name+'.e'
+        command = 'bash'+' ' + job_path+'.sh'
+        command +=' > '+job_path+'.o'+" 2>"+job_path+'.e'
         global job_count
         # if job_count%jobs_limit!=0:
         #     command+="&"
@@ -138,12 +177,21 @@ def submit_one_job(prefix_path, json_file):
         if not only_print:
             os.system(command)
 
+def check_path(paths):
+    paths_new=[]
+    for path in paths:
+        if not glob.glob(path+"/*.jjson"):
+            paths_new.append(path)
+    return paths_new
 
 # Read json file from json path
 json_file_list = []
 def get_json_file_from_path(prefix_path):
     for f in os.listdir(SETTING_JSON_PATH + prefix_path):
+        
         if f.endswith('.json'):
+            if "result.jjson" in os.listdir(SETTING_JSON_PATH + prefix_path) and only_unfinished:
+                continue
             flag_run=True
             for pass_name in  WHITE_LIST:
                 flag_run=flag_run and  pass_name in prefix_path+f
@@ -154,21 +202,30 @@ def get_json_file_from_path(prefix_path):
         elif os.path.isdir(SETTING_JSON_PATH + prefix_path + '/' + f):
             get_json_file_from_path(prefix_path + '/' + f)
 get_json_file_from_path('')
-
+random.shuffle(json_file_list)
+json_file_list=sorted(json_file_list,key=lambda x: int(x[0][-1]))
 if not plain_script:
     for (prefix_path, json_file) in progressbar(json_file_list):
     #     for i in range(REPEAT_TIMES):
             submit_one_job(prefix_path, json_file)
 else:
+    result_list_path=[]
     inital=args.initial_n_cmds
     ind=0
     for (prefix_path, json_file) in progressbar(json_file_list):
 #     for i in range(REPEAT_TIMES):
+        path_cur= '/'.join([SETTING_JSON_PATH, prefix_path])
+        
         while psutil.virtual_memory().percent>memory_usage:
             time.sleep(secs_each_sub)
         # if psutil.virtual_memory().percent<80:
         submit_one_job(prefix_path, json_file)
+        result_list_path.append(path_cur)
+        while len(result_list_path)>=jobs_limit and not only_print and not rerun:
+#             print(result_list_path,"result_list_path")
+            result_list_path=check_path(result_list_path)
+            time.sleep(secs_each_sub)
         if ind>inital and not only_print:
             time.sleep(secs_each_sub)
         ind+=1
-
+        #print(result_list_path,"result_list_path")
