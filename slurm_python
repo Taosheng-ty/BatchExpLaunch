@@ -202,6 +202,7 @@ def get_json_file_from_path(prefix_path):
         elif os.path.isdir(SETTING_JSON_PATH + prefix_path + '/' + f):
             get_json_file_from_path(prefix_path + '/' + f)
 get_json_file_from_path('')
+random.seed(0)
 random.shuffle(json_file_list)
 json_file_list=sorted(json_file_list,key=lambda x: int(x[0][-1]))
 if not plain_script:
