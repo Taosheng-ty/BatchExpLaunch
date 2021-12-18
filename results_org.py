@@ -23,8 +23,8 @@ def append_single(result,max_len):
 def write_back(result,file_path):
     with open(file_path,"w") as f:
         json.dump(result,f)
-def get_path_sets(root_path,same_length=False):
-    paths=glob.glob(root_path+'/**/*.jjson', recursive=True)
+def get_path_sets(root_path,same_length=False,suffix="jjson"):
+    paths=glob.glob(root_path+'/**/*.'+suffix, recursive=True)
     # print(paths)
     path_sets=set()
     for path in paths:
@@ -41,8 +41,8 @@ def get_path_sets(root_path,same_length=False):
         # print(path_root)
         path_sets.add(path_root)
     return path_sets
-def merge_single_experiment_results(root_path):
-    paths=glob.glob(root_path+'/**/*.jjson', recursive=True)
+def merge_single_experiment_results(root_path,suffix="jjson"):
+    paths=glob.glob(root_path+'/**/*.'+suffix, recursive=True)
     # print(paths,root_path)
     df_result_cur=pd.DataFrame()
     for path in paths:
@@ -55,10 +55,10 @@ def merge_single_experiment_results(root_path):
 #     print(df_result_cur)
     return df_result_cur
 
-def merge_multiple_experiment_results(root_path):
+def merge_multiple_experiment_results(root_path,suffix="jjson"):
     path_sets=get_path_sets(root_path)
     for path_set in progressbar(path_sets):
-        df_result_cur=merge_single_experiment_results(path_set)
+        df_result_cur=merge_single_experiment_results(path_set,suffix=suffix)
         df_result_cur.to_csv(path_set+"/result.ccsv")
 
 class AutoVivification(dict):
@@ -83,7 +83,7 @@ def set_node_val(node_list,multi_level_dict,val):
         multi_level_dict=multi_level_dict[i]
     last_node=node_list[-1]
     multi_level_dict[last_node]=val
-def get_result_df(root_path,same_length=False,groupby="iterations",filter_list=[],only_mean=False,rerun=False):
+def get_result_df(root_path,same_length=False,groupby="iterations",filter_list=[],only_mean=False,rerun=False,suffix="jjson"):
     results_path=os.path.join(root_path,"results.pickle")
     results_path_exist=glob.glob(results_path)
 #     print(results_path)
@@ -93,13 +93,13 @@ def get_result_df(root_path,same_length=False,groupby="iterations",filter_list=[
         with open(results_path, 'rb') as handle:
             result,result_mean = pickle.load(handle)
     else:
-        path_sets=get_path_sets(root_path,same_length)
+        path_sets=get_path_sets(root_path,same_length,suffix=suffix)
         # print(path_sets)
         result=AutoVivification()
         result_mean=AutoVivification()
         for path_set in path_sets:
             node=get_node(root_path,path_set)
-            result_cur=merge_single_experiment_results(path_set)
+            result_cur=merge_single_experiment_results(path_set,suffix=suffix)
             set_node_val(node,result,result_cur)
             result_merged_cur=result_cur.groupby(groupby).mean().reset_index()
             set_node_val(node,result_mean,result_merged_cur)
@@ -113,7 +113,7 @@ def get_result_df(root_path,same_length=False,groupby="iterations",filter_list=[
 import itertools
 
 def plot_metrics(name_results_pair:dict,plots_y_partition:str="metrics_NDCG",errbar=True,
-plots_x_partition:str="iterations",groupby="iterations",ax=None,graph_param=None)->None:
+plots_x_partition:str="iterations",groupby="iterations",ax=None,graph_param={})->None:
     
     '''    
         name_results_pair:{method_name:result_dataframe}
