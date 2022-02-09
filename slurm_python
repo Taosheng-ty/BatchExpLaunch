@@ -3,7 +3,7 @@ import os,sys
 # CODE_PATH = '/raid/taoyang/research/research_everyday/projects/fairness/FairRec_www_2020/slurm/'
 import json
 import argparse
-import argcomplete
+#import argcomplete
 import psutil
 import time
 import glob
@@ -27,6 +27,8 @@ parser.add_argument('--plain_script',action='store_true',
                     help='if not give, will use slurm')
 parser.add_argument('--rerun',action='store_true',
                     help='if not give, will not rerun')
+parser.add_argument('--seefinished',action='store_true',
+                    help='check the finished')
 parser.add_argument('--recover',action='store_true',
                     help='if not give, will not recover')
 parser.add_argument('--show_backup',action='store_true',
@@ -47,13 +49,14 @@ parser.add_argument('--initial_n_cmds',type=int, default=0,
                     help='number of tasks when executing in slurm mode')
 parser.add_argument('--secs_each_sub',type=int, default=1,
                     help='secs between each submission')
-parser.add_argument('--memory_usage',type=int, default=80,
+parser.add_argument('--memory_usage',type=int, default=70,
                     help='memory usage, [0,100]')
-argcomplete.autocomplete(parser)
+#argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 memory_usage=args.memory_usage
 rerun=args.rerun
+seefinished=args.seefinished
 recover=args.recover
 only_unfinished=args.only_unfinished
 show_backup=args.show_backup
@@ -98,6 +101,13 @@ def submit_one_job(prefix_path, json_file):
                 print(path)
                 move(path, path+"bk")
         return
+    if seefinished:
+        cur_result_dir=os.path.join(SETTING_JSON_PATH, prefix_path[1:])
+        paths=glob.glob(cur_result_dir+"/*")
+        for path in paths:
+            if  path.endswith("jjson"):
+                print(path)
+        return        
     if recover:
         cur_result_dir=os.path.join(SETTING_JSON_PATH, prefix_path[1:])
         paths=glob.glob(cur_result_dir+"/*")
@@ -114,6 +124,7 @@ def submit_one_job(prefix_path, json_file):
             if  path.endswith("jjsonbk") :
                 print(path)
         return    
+
     if not os.path.exists(cur_log_path):
         os.makedirs(cur_log_path)
     if not os.path.exists(cur_output_path):
@@ -208,7 +219,7 @@ if len(json_file_list)>1:
     json_file_list=sorted(json_file_list,key=lambda x: x[0][-1])
 if not plain_script:
     for (prefix_path, json_file) in progressbar(json_file_list):
-            time.sleep(secs_each_sub)
+   #          time.sleep(secs_each_sub)
     #     for i in range(REPEAT_TIMES):
             submit_one_job(prefix_path, json_file)
 else:
