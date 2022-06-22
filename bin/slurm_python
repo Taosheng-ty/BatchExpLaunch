@@ -47,7 +47,7 @@ parser.add_argument('--only_unfinished',action='store_true',
                     help='specify to see if we only run only_unfinished')
 parser.add_argument('--initial_n_cmds',type=int, default=0,
                     help='number of tasks when executing in slurm mode')
-parser.add_argument('--secs_each_sub',type=int, default=1,
+parser.add_argument('--secs_each_sub',type=float, default=1.0,
                     help='secs between each submission')
 parser.add_argument('--memory_usage',type=int, default=70,
                     help='memory usage, [0,100]')
@@ -239,6 +239,7 @@ else:
 #             print(result_list_path,"result_list_path")
             result_list_path=check_path(result_list_path)
             time.sleep(secs_each_sub)
+            print(len(result_list_path),jobs_limit)
         if ind>=inital and not only_print:
             time.sleep(secs_each_sub)
         ind+=1
