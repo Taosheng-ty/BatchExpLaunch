@@ -200,7 +200,7 @@ json_file_list = []
 def get_json_file_from_path(prefix_path):
     for f in os.listdir(SETTING_JSON_PATH + prefix_path):
         
-        if f.endswith('.json'):
+        if f.endswith('setting.json'):
             if "result.jjson" in os.listdir(SETTING_JSON_PATH + prefix_path) and only_unfinished:
                 continue
             flag_run=True
@@ -239,7 +239,7 @@ else:
 #             print(result_list_path,"result_list_path")
             result_list_path=check_path(result_list_path)
             time.sleep(secs_each_sub)
-            print(len(result_list_path),jobs_limit)
+            # print(len(result_list_path),jobs_limit)
         if ind>=inital and not only_print:
             time.sleep(secs_each_sub)
         ind+=1

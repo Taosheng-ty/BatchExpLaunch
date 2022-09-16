@@ -225,7 +225,7 @@ plots_x_partition:str="iterations",groupby="iterations",ax=None,graph_param={})-
 
 
 def plot(name_results_pair:dict,errbar=True, ax=None,graph_param={},\
-                    desiredGradFairColorDict={})->None:
+                    desiredColorDict=None)->None:
     
     '''    
         name_results_pair:{method_name:result_dataframe}
@@ -249,14 +249,15 @@ def plot(name_results_pair:dict,errbar=True, ax=None,graph_param={},\
             ndata=len(x)
 #             assert plots_y_partition in algo_result, algo_name+" doesn't contain the partition "+plots_y_partition
 
-            if desiredGradFairColorDict is None:
+            if desiredColorDict is None:
                 color=next(colors)
             else:
-                color=desiredGradFairColorDict[algo_name]
+                color=desiredColorDict[algo_name]
             if not errbar:
                 plot.plot(x,y, marker = next(marker),color=color, label=algo_name, markevery=ndata//3)
             else:
-                plot.errorbar(x,yMean, yStd, marker = next(marker),color=color, label=algo_name, markevery=ndata//3)
+                # plot.errorbar(x,yMean, yStd, marker = next(marker),color=color, label=algo_name, markevery=ndata//3)
+                plot.errorbar(x,yMean, yStd,color=color, label=algo_name, markevery=ndata//3)
     if ax is None:
         gca=plot.gca()
         gca.set(**graph_param)
@@ -289,7 +290,7 @@ def paramIterationPlot(result:dict,metrics_name,step,ax=None,xlim=None,savepath=
         else:
             plot.plot(param,result_metric,marker = next(marker),label=key)
 def TradeoffPlot(result:dict,metrics_pair,step,\
-                    desiredGradFairColorDict={},ax=None,xlim=None,savepath=None):
+                    desiredColorDict={},ax=None,xlim=None,savepath=None):
     """
     This function plot the tradeoff performance.
     """
@@ -304,9 +305,9 @@ def TradeoffPlot(result:dict,metrics_pair,step,\
         yResult=np.array([np.mean(i)for i in result_list[2]])
         ndata=len(xResult)
         plot.plot(xResult,yResult,marker = next(marker),label=key, markevery=ndata//3)
-
+import random
 def RequirementPlot(result:dict,metrics_pair,step,\
-                    desiredGradFairColorDict={},ax=None,xlim=None,savepath=None):
+                    desiredColorDict={},ax=None,xlim=None,savepath=None,smoooth_fn=None):
     """
     This function plot the tradeoff performance.
     """
@@ -316,9 +317,14 @@ def RequirementPlot(result:dict,metrics_pair,step,\
         plot=plt
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors_list = prop_cycle.by_key()['color']
+    for color in colors_list:
+        if color in list(desiredColorDict.values()):
+            colors_list.remove(color)
     colors=itertools.cycle(colors_list)
     marker = itertools.cycle(('v', '^', "<",">","p",'x',"X","D", 'o', '*')) 
     for key, value in result.items():
+        # if "MC" in key:
+        #     print(key)
         result_list=extractResultWithParam(value,metrics_pair,step)
         xResult=np.array([np.mean(i)for i in result_list[1]])
         yResult=np.array([np.mean(i)for i in result_list[2]])
@@ -327,15 +333,25 @@ def RequirementPlot(result:dict,metrics_pair,step,\
         xResult=xResult[xSortedid]
         yResult=yResult[xSortedid]
         yResult=np.array([np.max(yResult[:i+1])for i in range(ndata)])
-        color=next(colors)
-        if key in desiredGradFairColorDict:
-            color=desiredGradFairColorDict[key]
-        plot.plot(xResult,yResult,color=color,marker = next(marker),label=key, markevery=ndata//3)
+        # if "MCF" in key:
+        #     print(xResult,yResult,"MC")
+        if smoooth_fn is not None:
+            xResult,yResult=smoooth_fn(x=xResult,y=yResult)
+            errbar=False
+        # color=next(colors)
+                   
+        if key in desiredColorDict:
+            color=desiredColorDict[key]
+            plot.plot(xResult,yResult,color=color,marker = next(marker),label=key, markevery=ndata//3)
+
+        else:
+            color=next(colors) 
+            plot.plot(xResult,yResult,color=color,marker = next(marker),label=key, markevery=ndata//3)
 
         
         
 def TradeoffScatter(result:dict,metrics_pair,step,\
-                    desiredGradFairColorDict={},ax=None,xlim=None,savepath=None):
+                    desiredColorDict={},ax=None,xlim=None,savepath=None,scatterMarker="o"):
     """
     This function plot the tradeoff performance.
     """
@@ -343,14 +359,14 @@ def TradeoffScatter(result:dict,metrics_pair,step,\
         plot=ax
     else:
         plot=plt
-    marker = itertools.cycle(("o")) 
+    marker = itertools.cycle((scatterMarker)) 
     for key, value in result.items():
         result_list=extractResult(value,metrics_pair,step)
         xResult=np.mean(result_list[0])
         yResult=np.mean(result_list[1])
         # ndata=len(xResult)
-        if key in desiredGradFairColorDict:
-            color=desiredGradFairColorDict[key]
+        if key in desiredColorDict:
+            color=desiredColorDict[key]
             plot.scatter(xResult,yResult,color=color,marker = next(marker),label=key,s=200)
         else:
             plot.scatter(xResult,yResult,marker = next(marker),label=key,s=200)
@@ -368,6 +384,7 @@ def extractResultWithParam(cur_res_split,res_names=[],step=0):
     argsort=np.argsort(tradeoff_nums)
     tradeoff_nums=tradeoff_nums[argsort]
     result=[tradeoff_nums]
+    # print(tradeoff_nums)
     for res_name in res_names:
         res_cur_name=[cur_res_split[tradeoff_param][res_name][step].tolist() for tradeoff_param in tradeoff_params ]
         res_cur_name=np.array(res_cur_name)[argsort]
@@ -388,6 +405,7 @@ def getGrandchildNode(InputDict,GrandchildNode):
     """
     resDict={}
     for keyL1, valueL1 in InputDict.items():
+        if GrandchildNode in valueL1:
             resDict[keyL1]=valueL1[GrandchildNode]
     return resDict
 
