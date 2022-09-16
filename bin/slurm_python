@@ -19,7 +19,7 @@ parser.add_argument('--JSON_PATH', type=str, default=None,required=True,
                     help='Directory of Json setting folder.')
 parser.add_argument('--json2args', action='store_true',
                     help='list the param in json file as script param')
-parser.add_argument('--python_ver',type=str, default="pt_ranking",
+parser.add_argument('--python_ver',type=str, default="python",
                     help='specify python version')
 # parser.add_argument('--test_only',action='store_true',
 #                     help='if not give, will exclude json file name containing test. if give, will only use json file containing test')
@@ -77,7 +77,7 @@ secs_each_sub=args.secs_each_sub
 # OUTPUT_PATH = '/home/taoyang/research/research_everyday/projects/ULTRA_paper/result_log/'#sys.argv[3]
 # LOG_PATH = '/home/taoyang/research/research_everyday/projects/ULTRA_paper/result_log/'
 # REPEAT_TIMES = 2
-python="~/miniconda3/envs/"+python_ver+"/bin/python "
+python=python_ver+" "
 job_count=1
 def submit_one_job(prefix_path, json_file):
     job_name = '_'.join([prefix_path, json_file]).replace('/','').replace('.json','')
