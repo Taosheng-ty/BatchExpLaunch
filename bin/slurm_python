@@ -51,9 +51,11 @@ parser.add_argument('--secs_each_sub',type=float, default=1.0,
                     help='secs between each submission')
 parser.add_argument('--memory_usage',type=int, default=70,
                     help='memory usage, [0,100]')
+parser.add_argument('--settingName',type=str,default="setting.json",
+                    help='settingName')
 #argcomplete.autocomplete(parser)
 args = parser.parse_args()
-
+settingName=args.settingName
 memory_usage=args.memory_usage
 rerun=args.rerun
 seefinished=args.seefinished
@@ -200,7 +202,7 @@ json_file_list = []
 def get_json_file_from_path(prefix_path):
     for f in os.listdir(SETTING_JSON_PATH + prefix_path):
         
-        if f.endswith('setting.json'):
+        if f.endswith(settingName):
             if "result.jjson" in os.listdir(SETTING_JSON_PATH + prefix_path) and only_unfinished:
                 continue
             flag_run=True

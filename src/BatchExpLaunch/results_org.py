@@ -225,7 +225,7 @@ plots_x_partition:str="iterations",groupby="iterations",ax=None,graph_param={})-
 
 
 def plot(name_results_pair:dict,errbar=True, ax=None,graph_param={},\
-                    desiredColorDict=None)->None:
+                    desiredColorDict=None,desiredMarkerDict={})->None:
     
     '''    
         name_results_pair:{method_name:result_dataframe}
@@ -234,7 +234,7 @@ def plot(name_results_pair:dict,errbar=True, ax=None,graph_param={},\
     prop_cycle = plt.rcParams['axes.prop_cycle']
     colors_list = prop_cycle.by_key()['color']
     colors=itertools.cycle(colors_list)
-    marker = itertools.cycle((',', '+', '.', 'o', '*')) 
+    markers = itertools.cycle(('v', '^', "<",">","p",'x',"X","D", 'o', '*')) 
     if ax:
         plot=ax
     else:
@@ -248,16 +248,17 @@ def plot(name_results_pair:dict,errbar=True, ax=None,graph_param={},\
             yStd=y.std(axis=1)
             ndata=len(x)
 #             assert plots_y_partition in algo_result, algo_name+" doesn't contain the partition "+plots_y_partition
-
             if desiredColorDict is None:
                 color=next(colors)
+                marker=next(markers)
             else:
                 color=desiredColorDict[algo_name]
+                marker=desiredMarkerDict[algo_name]
             if not errbar:
-                plot.plot(x,y, marker = next(marker),color=color, label=algo_name, markevery=ndata//3)
+                plot.plot(x,yMean, marker = marker,color=color, label=algo_name, markevery=ndata//3)
             else:
                 # plot.errorbar(x,yMean, yStd, marker = next(marker),color=color, label=algo_name, markevery=ndata//3)
-                plot.errorbar(x,yMean, yStd,color=color, label=algo_name, markevery=ndata//3)
+                plot.errorbar(x,yMean, yStd,marker = marker,color=color, label=algo_name, markevery=ndata//3)
     if ax is None:
         gca=plot.gca()
         gca.set(**graph_param)
@@ -271,7 +272,7 @@ def paramIterationPlot(result:dict,metrics_name,step,ax=None,xlim=None,savepath=
         plot=ax
     else:
         plot=plt
-    marker = itertools.cycle(('v', '^', "<",">","p",'x',"X","D", 'o', '*')) 
+    markers = itertools.cycle(('v', '^', "<",">","p",'x',"X","D", 'o', '*')) 
     for key, value in result.items():
         result_list=extractResultWithParam(value,[metrics_name],step)
         print(key)
@@ -286,9 +287,10 @@ def paramIterationPlot(result:dict,metrics_name,step,ax=None,xlim=None,savepath=
                 ind=param<=xlim
 #                     print(ind)
             ndata=len(ind)
-            plot.errorbar(param[ind],mean[ind],yerr=std[ind],marker = next(marker),label=key, markevery=ndata//3)
+            marker = next(markers)
+            plot.errorbar(param[ind],mean[ind],yerr=std[ind],marker = marker,label=key, markevery=ndata//3)
         else:
-            plot.plot(param,result_metric,marker = next(marker),label=key)
+            plot.plot(param,result_metric,marker = marker,label=key)
 def TradeoffPlot(result:dict,metrics_pair,step,\
                     desiredColorDict={},ax=None,xlim=None,savepath=None):
     """
@@ -307,7 +309,7 @@ def TradeoffPlot(result:dict,metrics_pair,step,\
         plot.plot(xResult,yResult,marker = next(marker),label=key, markevery=ndata//3)
 import random
 def RequirementPlot(result:dict,metrics_pair,step,\
-                    desiredColorDict={},ax=None,xlim=None,savepath=None,smoooth_fn=None):
+                    desiredColorDict={},desiredMarkerDict={},ax=None,xlim=None,savepath=None,smoooth_fn=None):
     """
     This function plot the tradeoff performance.
     """
@@ -321,7 +323,7 @@ def RequirementPlot(result:dict,metrics_pair,step,\
         if color in list(desiredColorDict.values()):
             colors_list.remove(color)
     colors=itertools.cycle(colors_list)
-    marker = itertools.cycle(('v', '^', "<",">","p",'x',"X","D", 'o', '*')) 
+    markers = itertools.cycle(('v', '^', "<",">","p",'x',"X","D", 'o', '*')) 
     for key, value in result.items():
         # if "MC" in key:
         #     print(key)
@@ -342,11 +344,12 @@ def RequirementPlot(result:dict,metrics_pair,step,\
                    
         if key in desiredColorDict:
             color=desiredColorDict[key]
-            plot.plot(xResult,yResult,color=color,marker = next(marker),label=key, markevery=ndata//3)
+            marker=desiredMarkerDict[key]
+            plot.plot(xResult,yResult,color=color,marker = marker,label=key, markevery=ndata//3)
 
         else:
             color=next(colors) 
-            plot.plot(xResult,yResult,color=color,marker = next(marker),label=key, markevery=ndata//3)
+            plot.plot(xResult,yResult,color=color,marker = next(markers),label=key, markevery=ndata//3)
 
         
         
