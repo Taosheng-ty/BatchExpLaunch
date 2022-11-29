@@ -113,8 +113,9 @@ def get_result_df(root_path,same_length=False,groupby="iterations",filter_list=[
             node=get_node(root_path,path_set)
             result_cur=merge_single_experiment_results(path_set,suffix=suffix)
             set_node_val(node,result,result_cur)
-            result_merged_cur=result_cur.groupby(groupby).mean().reset_index()
-            set_node_val(node,result_mean,result_merged_cur)
+            if groupby is not None and not only_mean:
+                result_merged_cur=result_cur.groupby(groupby).mean().reset_index()
+                set_node_val(node,result_mean,result_merged_cur)
         with open(results_path, 'wb') as handle:
             pickle.dump([result,result_mean], handle, protocol=pickle.HIGHEST_PROTOCOL)
     if not only_mean:
@@ -344,12 +345,14 @@ def RequirementPlot(result:dict,metrics_pair,step,\
                    
         if key in desiredColorDict:
             color=desiredColorDict[key]
-            marker=desiredMarkerDict[key]
-            plot.plot(xResult,yResult,color=color,marker = marker,label=key, markevery=ndata//3)
-
         else:
             color=next(colors) 
-            plot.plot(xResult,yResult,color=color,marker = next(markers),label=key, markevery=ndata//3)
+        if key in desiredMarkerDict:
+            marker=desiredMarkerDict[key]
+        else:
+            marker = next(markers)
+        plot.plot(xResult,yResult,color=color,marker = marker,label=key, markevery=ndata//3)
+
 
         
         
@@ -499,3 +502,45 @@ def export_legend(legend, filename="legend.png", expand=[-5,-5,5,5]):
     bbox = bbox.from_extents(*(bbox.extents + np.array(expand)))
     bbox = bbox.transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi=600,pad_inches=0.05, bbox_inches=bbox)
+    
+def IterateExpandDict(InputDict:dict,key="",result={}):
+    if isinstance(InputDict, pd.DataFrame):
+        InputDict["SettingId"]=[key]*len(InputDict)
+        result[key]=InputDict
+        return
+    else:
+        for keyCur in InputDict:
+            IterateExpandDict(InputDict[keyCur],key=key+"_"+keyCur,result=result)
+    return result
+def IterateSqueezeDict(InputDict:dict,key="",result={}):
+    if isinstance(InputDict, pd.DataFrame):
+        InputDict["SettingId"]=[key]*len(InputDict)
+        result[key]=InputDict
+        return
+    else:
+        for keyCur in InputDict:
+            subDict=dict(InputDict[keyCur])
+            # print(keyCur)
+            # settingkey,settingValue=keyCur.rsplit('_',1)
+            # subDict[settingkey]=settingValue
+            IterateSqueezeDict(subDict,key=key+"_"+keyCur,result=result)
+    return result
+def IterateExpandDict(InputDict:dict,key="",result=dict(),parentDict={}):
+    if isinstance(InputDict, pd.DataFrame):
+        InputDict["SettingId"]=[key]*len(InputDict)
+        for Parentkey in parentDict:
+            InputDict[Parentkey]=[parentDict[Parentkey]]*len(InputDict)
+        result[key]=InputDict
+        # print(len(result.keys()))
+    else:
+        for keyCur in InputDict:
+            inheritDict=dict(parentDict)
+            # print(keyCur)
+            settingkey,settingValue=keyCur.rsplit('_',1)
+            inheritDict[settingkey]=settingValue
+            IterateExpandDict(InputDict[keyCur],key=key+"_"+keyCur,result=result,parentDict=inheritDict)
+    return result
+def ExpandDict(InputDict:dict):
+    result=IterateExpandDict(InputDict,result=dict())
+    result=pd.concat(result.values(), ignore_index=True)
+    return result
