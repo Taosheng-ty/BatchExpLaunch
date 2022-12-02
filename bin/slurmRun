@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+import os
+import argparse
+    
+
+parser = argparse.ArgumentParser(description='Baseline Run')
+parser.add_argument('--cmd', type=str, default="python_main.py",
+                    help='cmd ')
+parser.add_argument('--outputDir', type=str, default="LogslurmRun/",
+                    help='exact python file we need to execute')
+parser.add_argument('--template', type=str, default=None,
+                    help='exact python file we need to execute')
+args = parser.parse_args()
+SlurmPath=args.outputDir
+os.makedirs(SlurmPath, exist_ok = True)
+job_file=os.path.join(SlurmPath,"run.sh")
+output_file=os.path.join(SlurmPath,"run")
+with open(job_file,"w") as fh:
+    if args.template is not None:
+        with open(args.template,"r") as temp:
+            lines=temp.read()
+        fh.writelines(lines+"\n")
+        fh.writelines("#SBATCH --job-name=%s.job\n" % args.cmd.replace(" ", "-")[:20])
+        fh.writelines("#SBATCH --output=%s.out\n" % output_file)
+        fh.writelines("#SBATCH --error=%s.err\n" % output_file)
+        
+    else:
+        fh.writelines("#!/bin/bash\n")
+        fh.writelines("#SBATCH --job-name=%s.job\n" % args.cmd.replace(" ", "-")[:20])
+        fh.writelines("#SBATCH --output=%s.out\n" % output_file)
+        fh.writelines("#SBATCH --error=%s.err\n" % output_file)
+        fh.write('#SBATCH --gres=gpu:1\n')
+        # fh.write('#SBATCH --partition=dgx*     # Partition to submit to \n')
+        #fh.writelines("#SBATCH --time=2-00:00\n")
+        fh.writelines("#SBATCH --mem=50G \n")
+        fh.writelines("#SBATCH --qos=normal\n")
+    # fh.writelines("#SBATCH --mail-type=ALL\n")
+    # fh.writelines("#SBATCH --mail-user=$USER@cs.utah.edu\n")
+    model_command = args.cmd
+    fh.write(model_command+"\n")
+    fh.write('exit\n')
+os.system("sbatch %s" %job_file)

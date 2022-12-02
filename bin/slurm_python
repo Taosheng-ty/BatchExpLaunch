@@ -138,7 +138,7 @@ def submit_one_job(prefix_path, json_file):
     fout.write('#\n')
     fout.write('#SBATCH --job-name='+job_name+'\n')
 #     fout.write('#SBATCH --partition=titan-long    # Partition to submit to \n')
-    fout.write('#SBATCH --partition=titan-giant    # Partition to submit to \n')
+    fout.write('#SBATCH --partition=dgx*     # Partition to submit to \n')
 #     fout.write('#SBATCH --partition=debug    # Partition to submit to \n')
     fout.write('#SBATCH --gres=gpu:1\n')
     fout.write('#SBATCH --ntasks='+str(ntasks)+'\n')
