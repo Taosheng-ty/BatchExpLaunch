@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="BatchExpLaunch",
-    version="0.0.6",
+    version="0.0.7",
     author="Tao Yang",
     author_email="taoyang@cs.utah.edu",
     description="A project for batch scripts submission",
