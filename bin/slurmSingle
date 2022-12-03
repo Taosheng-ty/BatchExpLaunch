@@ -25,12 +25,12 @@ with open(job_file,"w") as fh:
     fh.writelines("#SBATCH --output=%s.out\n" % output_file)
     fh.writelines("#SBATCH --error=%s.err\n" % output_file)
     fh.write('#SBATCH --gres=gpu:1\n')
-    fh.write('#SBATCH --partition=titan-giant    # Partition to submit to \n')
+    # fh.write('#SBATCH --partition=dgx*     # Partition to submit to \n')
     #fh.writelines("#SBATCH --time=2-00:00\n")
-    fh.writelines("#SBATCH --mem=12000\n")
+    fh.writelines("#SBATCH --mem=50G \n")
     fh.writelines("#SBATCH --qos=normal\n")
-    fh.writelines("#SBATCH --mail-type=ALL\n")
-    fh.writelines("#SBATCH --mail-user=$USER@cs.utah.edu\n")
+    # fh.writelines("#SBATCH --mail-type=ALL\n")
+    # fh.writelines("#SBATCH --mail-user=$USER@cs.utah.edu\n")
     model_command = ' '.join([
                 "python",
                 os.path.join(args.CODE_PATH,args.Cmd_file),args.Cmd_args
